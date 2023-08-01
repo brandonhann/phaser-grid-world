@@ -154,26 +154,22 @@ export class Map extends Phaser.Scene {
         }, this);
 
         camera.zoom = this.defaultZoom;
-        this.input.on('wheel',
-            (pointer: Phaser.Input.Pointer,
-                gameObjects: Phaser.GameObjects.GameObject[],
-                deltaX: number, deltaY: number, deltaZ: number) => {
 
-                const viewCenterX = camera.scrollX + camera.width / 2;
-                const viewCenterY = camera.scrollY + camera.height / 2;
+        this.input.on('wheel', (pointer: Phaser.Input.Pointer, gameObjects: Phaser.GameObjects.GameObject[], deltaX: number, deltaY: number, deltaZ: number) => {
+            const oldZoom = camera.zoom;
+            const newZoom = Phaser.Math.Clamp(oldZoom - deltaY * 0.001, this.minZoom, this.maxZoom);
 
-                const newZoom = Phaser.Math.Clamp(camera.zoom - deltaY * 0.001, this.minZoom, this.maxZoom);
+            const centerX = (camera.scrollX + camera.width / 2) / oldZoom;
+            const centerY = (camera.scrollY + camera.height / 2) / oldZoom;
 
-                camera.setZoom(newZoom);
+            camera.setZoom(newZoom);
 
-                const newScrollX = viewCenterX - camera.width / 2;
-                const newScrollY = viewCenterY - camera.height / 2;
+            camera.scrollX = centerX * newZoom - camera.width / 2;
+            camera.scrollY = centerY * newZoom - camera.height / 2;
 
-                camera.setScroll(newScrollX, newScrollY);
+            this.update(0, 0);
+        });
 
-                this.update(0, 0);
-            }
-        );
 
     }
 
