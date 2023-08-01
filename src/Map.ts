@@ -1,17 +1,9 @@
 import Phaser from 'phaser';
-import * as Perlin from 'perlin-noise';
-
-function hash(x: number, y: number) {
-    const a = 12.9898;
-    const b = 78.233;
-    const sin = Math.sin(a * x + b * y);
-    return sin - Math.floor(sin);
-}
-
+import { createNoise2D } from 'simplex-noise';
+import seedrandom from 'seedrandom';
 
 export class Map extends Phaser.Scene {
     private showGrid: boolean;
-    private mapData: boolean[][] = [];
     private gridSize: number;
     private minZoom: number;
     private maxZoom: number;
@@ -23,21 +15,39 @@ export class Map extends Phaser.Scene {
     private clickedY: number;
     private isClicked: boolean;
     private noiseMap: Record<string, number> = {};
+    private seed: number;
+    private simplex: (x: number, y: number) => number;
+
+    constructor() {
+        super({ key: 'Map' });
+        this.showGrid = true;
+        this.gridSize = 64;
+        this.minZoom = 1;
+        this.maxZoom = 2;
+        this.defaultZoom = 1.5;
+        this.clickedX = 0;
+        this.clickedY = 0;
+        this.isClicked = false;
+        this.noiseMap = {};
+
+        let storedSeed = localStorage.getItem('ooga');
+        if (storedSeed === null) {
+            storedSeed = Math.random().toString();
+            localStorage.setItem('ooga', storedSeed);
+        }
+        this.seed = parseFloat(storedSeed);
+        let rng = seedrandom(storedSeed);
+        Math.random = rng;
+        this.simplex = createNoise2D();
+    }
 
     private getNoise(x: number, y: number): number {
         const normalizedX = x / 100;
         const normalizedY = y / 100;
-
         let key = `${x},${y}`;
 
         if (this.noiseMap[key] === undefined) {
-            const noise = Perlin.generatePerlinNoise(1, 1, {
-                octaveCount: 4,
-                amplitude: 1.0,
-                persistence: 0.5,
-                random: Math.random,
-                seed: hash(normalizedX, normalizedY)
-            })[0];
+            const noise = (this.simplex(normalizedX, normalizedY) + 1) / 2;
 
             const maxDist = Math.sqrt(500 * 500 + 500 * 500);
             const dist = Math.sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
@@ -53,7 +63,7 @@ export class Map extends Phaser.Scene {
 
     private getTileType(x: number, y: number): number {
         let noiseValue = this.getNoise(x, y);
-        let tileType = noiseValue < 0.3 ? 0 : 1; // 0 = water, 1 = land
+        let tileType = noiseValue < 0.5 ? 0 : 1; // 0 = water, 1 = land
 
         if (tileType === 0) {
             let surroundingTiles = [
@@ -68,18 +78,6 @@ export class Map extends Phaser.Scene {
         }
 
         return tileType;
-    }
-
-    constructor() {
-        super({ key: 'Map' });
-        this.showGrid = true;
-        this.gridSize = 64;
-        this.minZoom = 1;
-        this.maxZoom = 2;
-        this.defaultZoom = 1.5
-        this.clickedX = 0;
-        this.clickedY = 0;
-        this.isClicked = false;
     }
 
     create() {
@@ -181,17 +179,13 @@ export class Map extends Phaser.Scene {
 
     update(time: number, delta: number) {
         this.controls?.update(delta);
-
         this.gridGraphics?.clear();
 
         if (this.showGrid) {
             const cam = this.cameras.main;
-
             const zoomedGridSize = this.gridSize * cam.zoom;
-
             const topLeftGridX = Math.floor((cam.scrollX - cam.width * (cam.zoom - 1)) / zoomedGridSize);
             const topLeftGridY = Math.floor((cam.scrollY - cam.height * (cam.zoom - 1)) / zoomedGridSize);
-
             const bottomRightGridX = Math.ceil((cam.scrollX + cam.width * cam.zoom) / zoomedGridSize);
             const bottomRightGridY = Math.ceil((cam.scrollY + cam.height * cam.zoom) / zoomedGridSize);
 
