@@ -1,4 +1,13 @@
 import Phaser from 'phaser';
+import * as Perlin from 'perlin-noise';
+
+function hash(x: number, y: number) {
+    const a = 12.9898;
+    const b = 78.233;
+    const sin = Math.sin(a * x + b * y);
+    return sin - Math.floor(sin);
+}
+
 
 export class Map extends Phaser.Scene {
     private showGrid: boolean;
@@ -13,6 +22,53 @@ export class Map extends Phaser.Scene {
     private clickedX: number;
     private clickedY: number;
     private isClicked: boolean;
+    private noiseMap: Record<string, number> = {};
+
+    private getNoise(x: number, y: number): number {
+        const normalizedX = x / 100;
+        const normalizedY = y / 100;
+
+        let key = `${x},${y}`;
+
+        if (this.noiseMap[key] === undefined) {
+            const noise = Perlin.generatePerlinNoise(1, 1, {
+                octaveCount: 4,
+                amplitude: 1.0,
+                persistence: 0.5,
+                random: Math.random,
+                seed: hash(normalizedX, normalizedY)
+            })[0];
+
+            const maxDist = Math.sqrt(500 * 500 + 500 * 500);
+            const dist = Math.sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
+            const gradient = 1 - Math.pow(dist / maxDist, 1.2);
+
+            const noiseWithGradient = noise * gradient;
+
+            this.noiseMap[key] = noiseWithGradient;
+        }
+
+        return this.noiseMap[key];
+    }
+
+    private getTileType(x: number, y: number): number {
+        let noiseValue = this.getNoise(x, y);
+        let tileType = noiseValue < 0.3 ? 0 : 1; // 0 = water, 1 = land
+
+        if (tileType === 0) {
+            let surroundingTiles = [
+                this.getNoise(x - 1, y),
+                this.getNoise(x + 1, y),
+                this.getNoise(x, y - 1),
+                this.getNoise(x, y + 1)
+            ];
+            if (surroundingTiles.every(val => val >= 0.3)) {
+                tileType = 1;
+            }
+        }
+
+        return tileType;
+    }
 
     constructor() {
         super({ key: 'Map' });
@@ -30,8 +86,17 @@ export class Map extends Phaser.Scene {
         this.gridGraphics = this.add.graphics({ lineStyle: { width: 1, color: 0xFFFFFF } });
         this.highlightGraphics = this.add.graphics({ fillStyle: { color: 0xFFFFFF } });
 
+        for (let y = -500; y < 500; y++) {
+            for (let x = -500; x < 500; x++) {
+                let key = `${x},${y}`;
+                this.noiseMap[key] = this.getNoise(x, y);
+            }
+        }
+
         let camera = this.cameras.main;
         camera.setBounds(-Infinity, -Infinity, Infinity, Infinity);
+        camera.scrollX = -camera.width / 2;
+        camera.scrollY = -camera.height / 2;
 
         const cursors = this.input.keyboard?.createCursorKeys();
         const controlConfig = {
@@ -68,6 +133,7 @@ export class Map extends Phaser.Scene {
             }
         }, this);
 
+
         this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
             if (pointer.button === 2) {
                 dragging = false;
@@ -81,20 +147,36 @@ export class Map extends Phaser.Scene {
                 camera.scrollX += diff.x;
                 camera.scrollY += diff.y;
                 startPoint.set(pointer.x, pointer.y);
+
+                const centerX = camera.scrollX + camera.width / 2;
+                const centerY = camera.scrollY + camera.height / 2;
+
+                console.log(`Camera center: (${centerX}, ${centerY})`);
             }
         }, this);
 
         camera.zoom = this.defaultZoom;
-
         this.input.on('wheel',
             (pointer: Phaser.Input.Pointer,
                 gameObjects: Phaser.GameObjects.GameObject[],
                 deltaX: number, deltaY: number, deltaZ: number) => {
 
-                const newZoom = camera.zoom - deltaY * 0.001;
-                camera.zoom = Phaser.Math.Clamp(newZoom, this.minZoom, this.maxZoom);
+                const viewCenterX = camera.scrollX + camera.width / 2;
+                const viewCenterY = camera.scrollY + camera.height / 2;
+
+                const newZoom = Phaser.Math.Clamp(camera.zoom - deltaY * 0.001, this.minZoom, this.maxZoom);
+
+                camera.setZoom(newZoom);
+
+                const newScrollX = viewCenterX - camera.width / 2;
+                const newScrollY = viewCenterY - camera.height / 2;
+
+                camera.setScroll(newScrollX, newScrollY);
+
                 this.update(0, 0);
-            });
+            }
+        );
+
     }
 
     update(time: number, delta: number) {
@@ -107,15 +189,17 @@ export class Map extends Phaser.Scene {
 
             const zoomedGridSize = this.gridSize * cam.zoom;
 
-            const topLeftX = Math.floor((cam.scrollX - cam.width * (cam.zoom - 1)) / zoomedGridSize) * zoomedGridSize;
-            const topLeftY = Math.floor((cam.scrollY - cam.height * (cam.zoom - 1)) / zoomedGridSize) * zoomedGridSize;
+            const topLeftGridX = Math.floor((cam.scrollX - cam.width * (cam.zoom - 1)) / zoomedGridSize);
+            const topLeftGridY = Math.floor((cam.scrollY - cam.height * (cam.zoom - 1)) / zoomedGridSize);
 
-            const bottomRightX = Math.ceil((cam.scrollX + cam.width * cam.zoom) / zoomedGridSize) * zoomedGridSize;
-            const bottomRightY = Math.ceil((cam.scrollY + cam.height * cam.zoom) / zoomedGridSize) * zoomedGridSize;
+            const bottomRightGridX = Math.ceil((cam.scrollX + cam.width * cam.zoom) / zoomedGridSize);
+            const bottomRightGridY = Math.ceil((cam.scrollY + cam.height * cam.zoom) / zoomedGridSize);
 
-            for (let y = topLeftY; y < bottomRightY; y += zoomedGridSize) {
-                for (let x = topLeftX; x < bottomRightX; x += zoomedGridSize) {
-                    this.gridGraphics?.strokeRect(x, y, zoomedGridSize, zoomedGridSize);
+            for (let gridY = topLeftGridY; gridY < bottomRightGridY; gridY++) {
+                for (let gridX = topLeftGridX; gridX < bottomRightGridX; gridX++) {
+                    let tileType = this.getTileType(gridX, gridY);
+                    let color = tileType === 0 ? 0x0000FF : 0x00FF00;
+                    this.gridGraphics?.fillStyle(color).fillRect(gridX * zoomedGridSize, gridY * zoomedGridSize, zoomedGridSize, zoomedGridSize);
                 }
             }
         }
