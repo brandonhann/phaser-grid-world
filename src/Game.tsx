@@ -12,7 +12,15 @@ const Game = () => {
             scene: [Map]
         };
 
-        new Phaser.Game(config);
+        const game = new Phaser.Game(config);
+
+        const resizeGame = () => {
+            game.scale.resize(window.innerWidth, window.innerHeight);
+        };
+
+        window.addEventListener('resize', resizeGame);
+
+        return () => window.removeEventListener('resize', resizeGame);
     }, []);
 
     return <div id="phaser-game" />;

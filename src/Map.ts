@@ -17,7 +17,7 @@ export class Map extends Phaser.Scene {
         this.gridGraphics = this.add.graphics({ lineStyle: { width: 1, color: 0xFFFFFF } });
 
         let camera = this.cameras.main;
-        camera.setBounds(0, 0, Infinity, Infinity);
+        camera.setBounds(-Infinity, -Infinity, Infinity, Infinity);
 
         const cursors = this.input.keyboard?.createCursorKeys();
         const controlConfig = {
@@ -62,8 +62,16 @@ export class Map extends Phaser.Scene {
         this.gridGraphics?.clear();
 
         if (this.showGrid) {
-            for (let y = 0; y < this.cameras.main.height; y += this.gridSize) {
-                for (let x = 0; x < this.cameras.main.width; x += this.gridSize) {
+            const cam = this.cameras.main;
+
+            const topLeftX = Math.floor(cam.scrollX / this.gridSize) * this.gridSize;
+            const topLeftY = Math.floor(cam.scrollY / this.gridSize) * this.gridSize;
+
+            const bottomRightX = Math.ceil((cam.scrollX + cam.width) / this.gridSize) * this.gridSize;
+            const bottomRightY = Math.ceil((cam.scrollY + cam.height) / this.gridSize) * this.gridSize;
+
+            for (let y = topLeftY; y < bottomRightY; y += this.gridSize) {
+                for (let x = topLeftX; x < bottomRightX; x += this.gridSize) {
                     this.gridGraphics?.strokeRect(x, y, this.gridSize, this.gridSize);
                 }
             }
