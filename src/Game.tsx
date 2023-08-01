@@ -20,7 +20,16 @@ const Game = () => {
 
         window.addEventListener('resize', resizeGame);
 
-        return () => window.removeEventListener('resize', resizeGame);
+        const preventContextMenu = (event: MouseEvent) => {
+            event.preventDefault();
+        };
+
+        window.addEventListener('contextmenu', preventContextMenu);
+
+        return () => {
+            window.removeEventListener('resize', resizeGame);
+            window.removeEventListener('contextmenu', preventContextMenu);
+        };
     }, []);
 
     return <div id="phaser-game" />;

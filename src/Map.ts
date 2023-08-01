@@ -4,17 +4,31 @@ export class Map extends Phaser.Scene {
     private showGrid: boolean;
     private mapData: boolean[][] = [];
     private gridSize: number;
+    private minZoom: number;
+    private maxZoom: number;
+    private defaultZoom: number;
     private gridGraphics?: Phaser.GameObjects.Graphics;
     private controls?: Phaser.Cameras.Controls.FixedKeyControl;
+    private highlightGraphics?: Phaser.GameObjects.Graphics;
+    private clickedX: number;
+    private clickedY: number;
+    private isClicked: boolean;
 
     constructor() {
-        super({ key: 'MapScene' });
+        super({ key: 'Map' });
         this.showGrid = true;
-        this.gridSize = 32;
+        this.gridSize = 64;
+        this.minZoom = 1;
+        this.maxZoom = 2;
+        this.defaultZoom = 1.5
+        this.clickedX = 0;
+        this.clickedY = 0;
+        this.isClicked = false;
     }
 
     create() {
         this.gridGraphics = this.add.graphics({ lineStyle: { width: 1, color: 0xFFFFFF } });
+        this.highlightGraphics = this.add.graphics({ fillStyle: { color: 0xFFFFFF } });
 
         let camera = this.cameras.main;
         camera.setBounds(-Infinity, -Infinity, Infinity, Infinity);
@@ -35,46 +49,50 @@ export class Map extends Phaser.Scene {
         let endPoint = new Phaser.Math.Vector2();
 
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-            dragging = true;
-            startPoint.set(pointer.x, pointer.y);
+            if (pointer.button === 2) {
+                dragging = true;
+                startPoint.set(pointer.x, pointer.y);
+            } else if (pointer.button === 0) {
+                let worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                let zoomedGridSize = this.gridSize * this.cameras.main.zoom;
+                this.clickedX = Math.floor(worldPoint.x / zoomedGridSize);
+                this.clickedY = Math.floor(worldPoint.y / zoomedGridSize);
+
+                this.highlightGraphics?.clear();
+                this.highlightGraphics?.fillRect(this.clickedX * zoomedGridSize, this.clickedY * zoomedGridSize, zoomedGridSize, zoomedGridSize);
+
+                console.log(`Clicked on grid: (${this.clickedX}, ${this.clickedY})`);
+                this.isClicked = true;
+            } else {
+                return;
+            }
         }, this);
 
-        this.input.on('pointerup', () => {
-            dragging = false;
+        this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+            if (pointer.button === 2) {
+                dragging = false;
+            }
         }, this);
 
         this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-            if (!dragging) {
-                return;
+            if (dragging && pointer.button === 2) {
+                endPoint.set(pointer.x, pointer.y);
+                let diff = startPoint.subtract(endPoint);
+                camera.scrollX += diff.x;
+                camera.scrollY += diff.y;
+                startPoint.set(pointer.x, pointer.y);
             }
-
-            endPoint.set(pointer.x, pointer.y);
-            let diff = startPoint.subtract(endPoint);
-            camera.scrollX += diff.x;
-            camera.scrollY += diff.y;
-            startPoint.set(pointer.x, pointer.y);
         }, this);
 
-        // Set initial zoom level
-        camera.zoom = 1.5;
+        camera.zoom = this.defaultZoom;
 
-        // Set minimum and maximum zoom levels
-        const minZoom = 1;
-        const maxZoom = 2;
-
-        // Listen for mouse wheel events
         this.input.on('wheel',
             (pointer: Phaser.Input.Pointer,
                 gameObjects: Phaser.GameObjects.GameObject[],
                 deltaX: number, deltaY: number, deltaZ: number) => {
 
-                // Adjust zoom level based on wheel movement
-                const newZoom = camera.zoom - deltaY * 0.001;  // Note the minus sign here
-
-                // Clamp zoom level within specified range
-                camera.zoom = Phaser.Math.Clamp(newZoom, minZoom, maxZoom);
-
-                // Redraw grid with updated zoom level
+                const newZoom = camera.zoom - deltaY * 0.001;
+                camera.zoom = Phaser.Math.Clamp(newZoom, this.minZoom, this.maxZoom);
                 this.update(0, 0);
             });
     }
@@ -100,6 +118,12 @@ export class Map extends Phaser.Scene {
                     this.gridGraphics?.strokeRect(x, y, zoomedGridSize, zoomedGridSize);
                 }
             }
+        }
+
+        if (this.isClicked) {
+            this.highlightGraphics?.clear();
+            let zoomedGridSize = this.gridSize * this.cameras.main.zoom;
+            this.highlightGraphics?.fillRect(this.clickedX * zoomedGridSize, this.clickedY * zoomedGridSize, zoomedGridSize, zoomedGridSize);
         }
     }
 
