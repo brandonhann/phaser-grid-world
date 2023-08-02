@@ -168,6 +168,7 @@ export class Map extends Phaser.Scene {
             camera.scrollY = centerY * newZoom - camera.height / 2;
 
             this.update(0, 0);
+            this.scene.launch('MinimapScene');
         });
 
 
@@ -199,6 +200,15 @@ export class Map extends Phaser.Scene {
             let zoomedGridSize = this.gridSize * this.cameras.main.zoom;
             this.highlightGraphics?.fillRect(this.clickedX * zoomedGridSize, this.clickedY * zoomedGridSize, zoomedGridSize, zoomedGridSize);
         }
+    }
+
+    getGridData() {
+        return {
+            showGrid: this.showGrid,
+            gridSize: this.gridSize,
+            noiseMap: this.noiseMap,
+            getTileType: this.getTileType.bind(this),
+        };
     }
 
     toggleGrid() {

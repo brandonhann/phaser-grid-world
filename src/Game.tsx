@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import Phaser from 'phaser';
 import { Map } from './Map';
+import { MinimapScene } from './MinimapScene';
 
 const Game = () => {
     useEffect(() => {
@@ -9,7 +10,7 @@ const Game = () => {
             width: window.innerWidth,
             height: window.innerHeight,
             parent: 'phaser-game',
-            scene: [Map]
+            scene: [Map, MinimapScene]
         };
 
         const game = new Phaser.Game(config);
