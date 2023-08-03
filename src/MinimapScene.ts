@@ -28,6 +28,9 @@ export class MinimapScene extends Phaser.Scene {
     }
 
     update() {
+        const minimapOffsetX = 10;
+        const minimapOffsetY = 10;
+
         if (this.mainCamera) {
             const mapScene = this.scene.get('Map') as Map;
             const gridData = mapScene.getGridData();
@@ -36,19 +39,20 @@ export class MinimapScene extends Phaser.Scene {
                 this.gridGraphics?.clear();
                 this.borderGraphics?.clear();
 
-                const scale = this.minimapSize / Math.min(this.game.scale.width, this.game.scale.height) * this.minimapZoom;
-                const topLeftX = Math.floor(this.mainCamera.scrollX / gridData.gridSize);
-                const topLeftY = Math.floor(this.mainCamera.scrollY / gridData.gridSize);
-                const visibleTilesX = Math.ceil(this.game.scale.width / gridData.gridSize / this.minimapZoom);
-                const visibleTilesY = Math.ceil(this.game.scale.height / gridData.gridSize / this.minimapZoom);
+                const scale = this.minimapSize / Math.max(this.game.scale.width, this.game.scale.height) * this.minimapZoom;
+                const centerX = Math.floor((this.mainCamera.scrollX + this.mainCamera.width / 2) / gridData.gridSize);
+                const centerY = Math.floor((this.mainCamera.scrollY + this.mainCamera.height / 2) / gridData.gridSize);
+                const visibleTiles = Math.ceil(Math.max(this.game.scale.width, this.game.scale.height) / gridData.gridSize / this.minimapZoom);
+                const offsetX = minimapOffsetX + (this.minimapSize - visibleTiles * gridData.gridSize * scale) / 2;
+                const offsetY = this.game.scale.height - minimapOffsetY - this.minimapSize + (this.minimapSize - visibleTiles * gridData.gridSize * scale) / 2;
 
-                for (let y = 0; y < visibleTilesY; y++) {
-                    for (let x = 0; x < visibleTilesX; x++) {
-                        let tileType = gridData.getTileType(topLeftX + x, topLeftY + y);
+                for (let y = 0; y < visibleTiles; y++) {
+                    for (let x = 0; x < visibleTiles; x++) {
+                        let tileType = gridData.getTileType(centerX + x - visibleTiles / 2, centerY + y - visibleTiles / 2);
                         let color = tileType === 0 ? 0x0000FF : 0x00FF00;
 
-                        const gridX = x * gridData.gridSize * scale;
-                        const gridY = this.game.scale.height - this.minimapSize + y * gridData.gridSize * scale;
+                        const gridX = offsetX + x * gridData.gridSize * scale;
+                        const gridY = offsetY + y * gridData.gridSize * scale;
                         const gridSize = gridData.gridSize * scale;
 
                         this.gridGraphics?.fillStyle(color).fillRect(gridX, gridY, gridSize, gridSize);
@@ -58,12 +62,16 @@ export class MinimapScene extends Phaser.Scene {
                 this.viewportGraphics?.clear();
                 const viewportWidth = this.game.scale.width * scale;
                 const viewportHeight = this.game.scale.height * scale;
-                const viewportY = this.game.scale.height - this.minimapSize;
-                this.viewportGraphics?.strokeRect(0, viewportY, viewportWidth, viewportHeight);
+                const viewportX = minimapOffsetX + this.minimapSize / 2 - viewportWidth / 2;
+                const viewportY = this.game.scale.height - minimapOffsetY - this.minimapSize / 2 - viewportHeight / 2 + (viewportWidth - viewportHeight) / 2 - 6;
 
-                const borderY = this.game.scale.height - this.minimapSize;
-                this.borderGraphics?.strokeRect(0, borderY, this.minimapSize, this.minimapSize);
+                this.viewportGraphics?.strokeRect(viewportX, viewportY, viewportWidth, viewportHeight);
+
+                const borderY = this.game.scale.height - minimapOffsetY - this.minimapSize;
+                this.borderGraphics?.strokeRect(minimapOffsetX, borderY, this.minimapSize, this.minimapSize);
             }
         }
     }
+
+
 }

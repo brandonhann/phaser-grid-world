@@ -168,9 +168,9 @@ export class Map extends Phaser.Scene {
             camera.scrollY = centerY * newZoom - camera.height / 2;
 
             this.update(0, 0);
-            this.scene.launch('MinimapScene');
         });
 
+        this.scene.launch('MinimapScene');
 
     }
 
