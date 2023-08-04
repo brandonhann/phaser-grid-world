@@ -145,11 +145,6 @@ export class Map extends Phaser.Scene {
                 camera.scrollX += diff.x;
                 camera.scrollY += diff.y;
                 startPoint.set(pointer.x, pointer.y);
-
-                const centerX = camera.scrollX + camera.width / 2;
-                const centerY = camera.scrollY + camera.height / 2;
-
-                console.log(`Camera center: (${centerX}, ${centerY})`);
             }
         }, this);
 

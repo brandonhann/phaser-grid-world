@@ -12,7 +12,7 @@ export class MinimapScene extends Phaser.Scene {
         super({ key: 'MinimapScene' });
         this.mainCamera = null;
         this.minimapSize = 200;
-        this.minimapZoom = 0.2;
+        this.minimapZoom = 0.3;
     }
 
     create() {
@@ -23,13 +23,17 @@ export class MinimapScene extends Phaser.Scene {
         this.gridGraphics.setScrollFactor(0);
         this.viewportGraphics = this.add.graphics({ lineStyle: { width: 2, color: 0xFF0000 } });
         this.viewportGraphics.setScrollFactor(0);
-        this.borderGraphics = this.add.graphics({ lineStyle: { width: 2, color: 0xFFFFFF } });
+        this.borderGraphics = this.add.graphics({ lineStyle: { width: 2, color: 0x000000 } });
         this.borderGraphics.setScrollFactor(0);
     }
 
     update() {
         const minimapOffsetX = 10;
         const minimapOffsetY = 10;
+
+        // Set the position of the minimap to a fixed point on the screen
+        const offsetX = minimapOffsetX;
+        const offsetY = this.game.scale.height - minimapOffsetY - this.minimapSize;
 
         if (this.mainCamera) {
             const mapScene = this.scene.get('Map') as Map;
@@ -39,12 +43,11 @@ export class MinimapScene extends Phaser.Scene {
                 this.gridGraphics?.clear();
                 this.borderGraphics?.clear();
 
-                const scale = this.minimapSize / Math.max(this.game.scale.width, this.game.scale.height) * this.minimapZoom;
                 const centerX = Math.floor((this.mainCamera.scrollX + this.mainCamera.width / 2) / gridData.gridSize);
                 const centerY = Math.floor((this.mainCamera.scrollY + this.mainCamera.height / 2) / gridData.gridSize);
                 const visibleTiles = Math.ceil(Math.max(this.game.scale.width, this.game.scale.height) / gridData.gridSize / this.minimapZoom);
-                const offsetX = minimapOffsetX + (this.minimapSize - visibleTiles * gridData.gridSize * scale) / 2;
-                const offsetY = this.game.scale.height - minimapOffsetY - this.minimapSize + (this.minimapSize - visibleTiles * gridData.gridSize * scale) / 2;
+
+                const scale = this.minimapSize / Math.max(gridData.gridSize * visibleTiles);
 
                 for (let y = 0; y < visibleTiles; y++) {
                     for (let x = 0; x < visibleTiles; x++) {
@@ -60,18 +63,21 @@ export class MinimapScene extends Phaser.Scene {
                 }
 
                 this.viewportGraphics?.clear();
-                const viewportWidth = this.game.scale.width * scale;
-                const viewportHeight = this.game.scale.height * scale;
-                const viewportX = minimapOffsetX + this.minimapSize / 2 - viewportWidth / 2;
-                const viewportY = this.game.scale.height - minimapOffsetY - this.minimapSize / 2 - viewportHeight / 2 + (viewportWidth - viewportHeight) / 2 - 6;
+
+                const viewportWidth = this.mainCamera.width / this.mainCamera.zoom * scale;
+                const viewportHeight = this.mainCamera.height / this.mainCamera.zoom * scale;
+
+                // Keep viewport centered in the minimap
+                const viewportX = offsetX + (this.minimapSize - viewportWidth) / 2;
+                const viewportY = offsetY + (this.minimapSize - viewportHeight) / 2;
 
                 this.viewportGraphics?.strokeRect(viewportX, viewportY, viewportWidth, viewportHeight);
 
-                const borderY = this.game.scale.height - minimapOffsetY - this.minimapSize;
-                this.borderGraphics?.strokeRect(minimapOffsetX, borderY, this.minimapSize, this.minimapSize);
+                this.borderGraphics?.strokeRect(minimapOffsetX, offsetY, this.minimapSize, this.minimapSize);
             }
         }
     }
+
 
 
 }
