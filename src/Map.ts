@@ -17,6 +17,8 @@ export class Map extends Phaser.Scene {
     private noiseMap: Record<string, number> = {};
     private seed: number;
     private simplex: (x: number, y: number) => number;
+    private noiseScale: number = 100;
+    private simplexFine: (x: number, y: number) => number;
 
     constructor() {
         super({ key: 'Map' });
@@ -29,6 +31,8 @@ export class Map extends Phaser.Scene {
         this.clickedY = 0;
         this.isClicked = false;
         this.noiseMap = {};
+        this.simplex = createNoise2D();
+        this.simplexFine = createNoise2D();
 
         let storedSeed = localStorage.getItem('ooga');
         if (storedSeed === null) {
@@ -42,18 +46,20 @@ export class Map extends Phaser.Scene {
     }
 
     private getNoise(x: number, y: number): number {
-        const normalizedX = x / 100;
-        const normalizedY = y / 100;
+        const normalizedX = x / this.noiseScale;
+        const normalizedY = y / this.noiseScale;
         let key = `${x},${y}`;
 
         if (this.noiseMap[key] === undefined) {
             const noise = (this.simplex(normalizedX, normalizedY) + 1) / 2;
+            const noiseFine = (this.simplexFine(normalizedX * 5, normalizedY * 5) + 1) / 2;
+            const combinedNoise = (noise + noiseFine) / 2;
 
             const maxDist = Math.sqrt(500 * 500 + 500 * 500);
             const dist = Math.sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
             const gradient = 1 - Math.pow(dist / maxDist, 1.2);
 
-            const noiseWithGradient = noise * gradient;
+            const noiseWithGradient = combinedNoise * gradient;
 
             this.noiseMap[key] = noiseWithGradient;
         }
@@ -64,6 +70,11 @@ export class Map extends Phaser.Scene {
     private getTileType(x: number, y: number): number {
         let noiseValue = this.getNoise(x, y);
         let tileType = noiseValue < 0.5 ? 0 : 1; // 0 = water, 1 = land
+
+        const riverThreshold = 0.05;
+        if (Math.abs(noiseValue - 0.5) < riverThreshold) {
+            tileType = 0;
+        }
 
         if (tileType === 0) {
             let surroundingTiles = [

@@ -31,7 +31,6 @@ export class MinimapScene extends Phaser.Scene {
         const minimapOffsetX = 10;
         const minimapOffsetY = 10;
 
-        // Set the position of the minimap to a fixed point on the screen
         const offsetX = minimapOffsetX;
         const offsetY = this.game.scale.height - minimapOffsetY - this.minimapSize;
 
@@ -67,7 +66,6 @@ export class MinimapScene extends Phaser.Scene {
                 const viewportWidth = this.mainCamera.width / this.mainCamera.zoom * scale;
                 const viewportHeight = this.mainCamera.height / this.mainCamera.zoom * scale;
 
-                // Keep viewport centered in the minimap
                 const viewportX = offsetX + (this.minimapSize - viewportWidth) / 2;
                 const viewportY = offsetY + (this.minimapSize - viewportHeight) / 2;
 
@@ -77,7 +75,6 @@ export class MinimapScene extends Phaser.Scene {
             }
         }
     }
-
 
 
 }
